@@ -1,4 +1,5 @@
 import streamlit as st
+from PyPDF2 import PdfReader
 
 # -----------------------------
 # Matching Logic
@@ -37,14 +38,26 @@ st.markdown("### AI-powered Resume vs Job Matching Tool")
 st.divider()
 
 # -----------------------------
-# Resume Upload
+# Resume Upload (PDF + TXT)
 # -----------------------------
-uploaded_file = st.file_uploader("📂 Upload Resume (txt file)", type=["txt"])
+uploaded_file = st.file_uploader(
+    "📂 Upload Resume (PDF or TXT)", 
+    type=["pdf", "txt"]
+)
 
 profile = ""
 
 if uploaded_file:
-    profile = uploaded_file.read().decode("utf-8")
+    if uploaded_file.type == "application/pdf":
+        reader = PdfReader(uploaded_file)
+        text = ""
+        for page in reader.pages:
+            if page.extract_text():
+                text += page.extract_text()
+        profile = text
+    else:
+        profile = uploaded_file.read().decode("utf-8")
+
     st.success("Resume uploaded successfully!")
 
 # -----------------------------
@@ -53,6 +66,7 @@ if uploaded_file:
 profile_input = st.text_area("📄 Candidate Profile (or upload file above)")
 jd = st.text_area("📌 Job Description")
 
+# If user types manually, override file
 if profile_input:
     profile = profile_input
 
@@ -70,14 +84,17 @@ if st.button("Analyze Match"):
 
             st.success(f"Match Score: {score}%")
 
+            # Progress bar
             st.progress(score / 100)
 
+            # Matching skills
             st.write("### ✅ Matching Skills")
             if matched:
                 st.write(", ".join(matched))
             else:
                 st.write("No matching skills found")
 
+            # Missing skills
             st.write("### ❌ Missing Skills")
             if missing:
                 st.write(", ".join(missing))
