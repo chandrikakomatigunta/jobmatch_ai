@@ -1,7 +1,11 @@
 import streamlit as st
 
 # -----------------------------
+<<<<<<< HEAD
 # Matching Logic
+=======
+# Simple JD Matching Logic
+>>>>>>> 361a1ced64cdf4471905f6e3a48ae320530119da
 # -----------------------------
 def score_candidate(profile, jd):
     profile_text = str(profile).lower()
@@ -28,6 +32,7 @@ def score_candidate(profile, jd):
 
 
 # -----------------------------
+<<<<<<< HEAD
 # UI
 # -----------------------------
 st.set_page_config(page_title="JobMatch AI", layout="centered")
@@ -87,3 +92,39 @@ if st.button("Analyze Match"):
                 st.write(", ".join(missing))
             else:
                 st.write("No missing skills 🎉")
+=======
+# Streamlit UI
+# -----------------------------
+st.set_page_config(page_title="JobMatch AI", layout="centered")
+
+st.title("🤖 JobMatch AI")
+st.subheader("Match Resume with Job Description")
+
+st.write("Paste candidate profile and job description to see matching score.")
+
+# Inputs
+profile = st.text_area("📄 Candidate Profile")
+jd = st.text_area("📌 Job Description")
+
+# Button
+if st.button("Analyze Match"):
+
+    if not profile or not jd:
+        st.warning("Please enter both profile and job description")
+    else:
+        score, matched, missing = score_candidate(profile, jd)
+
+        st.success(f"Match Score: {score}%")
+
+        st.write("### ✅ Matching Skills")
+        if matched:
+            st.write(", ".join(matched))
+        else:
+            st.write("No matching skills found")
+
+        st.write("### ❌ Missing Skills")
+        if missing:
+            st.write(", ".join(missing))
+        else:
+            st.write("No missing skills 🎉")
+>>>>>>> 361a1ced64cdf4471905f6e3a48ae320530119da
