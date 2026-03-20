@@ -1,141 +1,89 @@
 import streamlit as st
-from web_search import web_search
-from jd_scorer import score_candidate
-from resume_parser import extract_text_from_pdf
-from openai import OpenAI
-from config import get_openai_key
-from database import create_table, save_candidate, get_all_candidates
 
-# Initialize OpenAI
-client = OpenAI(api_key=get_openai_key())
+# -----------------------------
+# Matching Logic
+# -----------------------------
+def score_candidate(profile, jd):
+    profile_text = str(profile).lower()
+    jd = str(jd).lower()
 
-# Initialize DB
-create_table()
+    skills = ["python", "sql", "machine learning", "backend", "cloud", "api"]
 
-st.set_page_config(page_title="JobMatch AI", layout="wide")
+    score = 0
+    matched = []
+    missing = []
 
-st.title("🚀 JobMatch AI - Smart Resume Analyzer")
-st.caption("Match resumes with jobs using AI")
+    for skill in skills:
+        if skill in jd:
+            if skill in profile_text:
+                score += 1
+                matched.append(skill)
+            else:
+                missing.append(skill)
 
-# Tabs
-tab1, tab2 = st.tabs(["🔍 Web Search", "📊 Resume Scorer"])
+    total = len(skills)
+    percentage = int((score / total) * 100)
 
-# ---------------- WEB SEARCH ----------------
-with tab1:
-    st.header("Search Latest Info")
-
-    query = st.text_input("Enter search query")
-
-    if st.button("Search"):
-        if query:
-            results = web_search(query)
-
-            for r in results:
-                st.subheader(r["title"])
-                st.write(r["url"])
-                st.write(r["content"])
-                st.markdown("---")
-        else:
-            st.warning("Please enter a query")
+    return percentage, matched, missing
 
 
-# ---------------- RESUME SCORER ----------------
-with tab2:
-    st.header("Upload Resume & Match Job")
+# -----------------------------
+# UI
+# -----------------------------
+st.set_page_config(page_title="JobMatch AI", layout="centered")
 
-    col1, col2 = st.columns(2)
+st.markdown("# 🚀 JobMatch AI")
+st.markdown("### AI-powered Resume vs Job Matching Tool")
+st.divider()
 
-    with col1:
-        uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
+# -----------------------------
+# Resume Upload
+# -----------------------------
+uploaded_file = st.file_uploader("📂 Upload Resume (txt file)", type=["txt"])
 
-    with col2:
-        jd = st.text_area("Paste Job Description")
+profile = ""
 
-    if st.button("Analyze Resume"):
-        if uploaded_file and jd:
+if uploaded_file:
+    profile = uploaded_file.read().decode("utf-8")
+    st.success("Resume uploaded successfully!")
 
-            # ✅ STEP 1: Extract Resume
-            try:
-                resume_text = extract_text_from_pdf(uploaded_file)
-            except Exception as e:
-                st.error("❌ Error reading PDF")
-                st.stop()
+# -----------------------------
+# Inputs
+# -----------------------------
+profile_input = st.text_area("📄 Candidate Profile (or upload file above)")
+jd = st.text_area("📌 Job Description")
 
-            # ✅ STEP 2: ADD SPINNER HERE (IMPORTANT LOCATION)
-            # 🔥 This is EXACT place to add spinner
-            with st.spinner("Analyzing resume..."):
-                result = score_candidate(resume_text, jd)
+# If user typed manually, use that
+if profile_input:
+    profile = profile_input
 
-            # ✅ STEP 3: Display Results
-            st.success(f"🎯 Match Score: {result['score']}%")
-            st.progress(result["score"] / 100)
+# -----------------------------
+# Button Action
+# -----------------------------
+if st.button("Analyze Match"):
 
-            st.write(f"✅ Matched Skills ({len(result['matched_skills'])}):")
-            st.write(result["matched_skills"])
+    if not profile or not jd:
+        st.warning("Please enter or upload profile and job description")
+    else:
+        with st.spinner("Analyzing resume..."):
 
-            st.write(f"❌ Missing Skills ({len(result['missing_skills'])}):")
-            st.write(result["missing_skills"])
+            score, matched, missing = score_candidate(profile, jd)
 
-            st.write(f"📊 Total Required Skills: {result['total_required']}")
+            st.success(f"Match Score: {score}%")
 
-            # 💾 Save to DB
-            save_candidate(
-                result["score"],
-                result["matched_skills"],
-                result["missing_skills"],
-                jd
-            )
+            # Progress bar
+            st.progress(score / 100)
 
-            # ---------------- AI SUGGESTIONS ----------------
-            st.subheader("🤖 AI Suggestions")
+            # Matching skills
+            st.write("### ✅ Matching Skills")
+            if matched:
+                st.write(", ".join(matched))
+            else:
+                st.write("No matching skills found")
 
-            prompt = f"""
-            Candidate Resume:
-            {resume_text[:2000]}
-
-            Job Description:
-            {jd}
-
-            Matched Skills: {result['matched_skills']}
-            Missing Skills: {result['missing_skills']}
-
-            Give:
-            1. How to improve this resume
-            2. What skills to add
-            3. Why the score is low or high
-            """
-
-            # ✅ OPTIONAL: Add spinner for AI also
-            with st.spinner("Generating AI suggestions..."):
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-
-                    ai_output = response.choices[0].message.content
-                    st.write(ai_output)
-
-                except Exception as e:
-                    st.error("❌ Error generating AI suggestions")
-
-            st.text_area("Extracted Resume Text", resume_text[:1000])
-
-        else:
-            st.warning("Please upload resume and enter job description")
-
-
-# ---------------- HISTORY ----------------
-st.markdown("---")
-st.header("📊 Saved Candidates")
-
-if st.button("Show History"):
-    data = get_all_candidates()
-
-    for row in data:
-        st.write(f"ID: {row[0]}")
-        st.write(f"Score: {row[1]}%")
-        st.write(f"Matched Skills: {row[2]}")
-        st.write(f"Missing Skills: {row[3]}")
-        st.write(f"Job Description: {row[4][:100]}")
-        st.markdown("---")
+            # Missing skills
+            st.write("### ❌ Missing Skills")
+            if missing:
+                st.write(", ".join(missing))
+            else:
+                st.write("No missing skills 🎉")
